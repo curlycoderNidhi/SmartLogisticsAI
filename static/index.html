@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Operations & Logistics Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans">
+    <div class="max-w-6xl mx-auto p-6">
+        <header class="mb-8 flex justify-between items-center bg-white p-5 rounded-xl shadow-sm">
+            <div>
+                <h1 class="text-2xl font-bold text-indigo-700">AI Logistics Control Platform</h1>
+                <p class="text-sm text-slate-500">Automated Shipment Tracking & Risk Prediction Engine</p>
+            </div>
+            <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full">System Online</span>
+        </header>
+
+        <!-- Add Shipment Form -->
+        <div class="bg-white p-6 rounded-xl shadow-sm mb-8">
+            <h2 class="text-lg font-semibold mb-4">Register New Shipment</h2>
+            <form id="shipmentForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input type="text" id="tracking_number" placeholder="Tracking ID (e.g., FLW-1001)" required class="border p-2.5 rounded-lg">
+                <input type="text" id="origin" placeholder="Origin (e.g., Auckland)" required class="border p-2.5 rounded-lg">
+                <input type="text" id="destination" placeholder="Destination (e.g., Wellington)" required class="border p-2.5 rounded-lg">
+                <input type="number" id="distance_km" placeholder="Distance (km)" required class="border p-2.5 rounded-lg">
+                <select id="weather_condition" class="border p-2.5 rounded-lg">
+                    <option value="Clear">Weather: Clear</option>
+                    <option value="Rain">Weather: Rain</option>
+                    <option value="Fog">Weather: Fog</option>
+                    <option value="Storm">Weather: Storm</option>
+                </select>
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold p-2.5 rounded-lg transition">
+                    Analyze & Dispatch
+                </button>
+            </form>
+        </div>
+
+        <!-- Shipments Table -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div class="p-5 border-b">
+                <h2 class="text-lg font-semibold">Live Operations Feed</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-600 text-sm uppercase">
+                            <th class="p-4">Tracking ID</th>
+                            <th class="p-4">Route</th>
+                            <th class="p-4">Weather</th>
+                            <th class="p-4">AI Risk Score</th>
+                            <th class="p-4">AI Automated Action</th>
+                            <th class="p-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shipmentsTable" class="divide-y text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchShipments() {
+            const res = await fetch('/api/shipments');
+            const data = await res.json();
+            const tbody = document.getElementById('shipmentsTable');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                let badgeColor = item.ai_risk_score >= 60 ? 'bg-red-100 text-red-700' :
+                                 item.ai_risk_score >= 35 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-4 font-bold text-indigo-600">${item.tracking_number}</td>
+                        <td class="p-4">${item.origin} → ${item.destination} (${item.distance_km} km)</td>
+                        <td class="p-4">${item.weather_condition}</td>
+                        <td class="p-4"><span class="px-2.5 py-1 rounded-full font-semibold ${badgeColor}">${item.ai_risk_score}%</span></td>
+                        <td class="p-4 text-slate-700">${item.ai_recommendation}</td>
+                        <td class="p-4">
+                            <button onclick="deleteShipment(${item.id})" class="text-red-500 hover:underline">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById('shipmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                tracking_number: document.getElementById('tracking_number').value,
+                origin: document.getElementById('origin').value,
+                destination: document.getElementById('destination').value,
+                distance_km: parseFloat(document.getElementById('distance_km').value),
+                weather_condition: document.getElementById('weather_condition').value
+            };
+
+            const res = await fetch('/api/shipments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                document.getElementById('shipmentForm').reset();
+                fetchShipments();
+            } else {
+                const err = await res.json();
+                alert(err.detail);
+            }
+        });
+
+        async function deleteShipment(id) {
+            await fetch(`/api/shipments/${id}`, { method: 'DELETE' });
+            fetchShipments();
+        }
+
+        fetchShipments();
+    </script>
+</body>
+</html>
